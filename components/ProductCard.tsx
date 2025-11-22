@@ -212,10 +212,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
             <div className="absolute top-2 right-2 z-20 w-12 h-12 bg-orange-600 rounded-full flex flex-col items-center justify-center text-white shadow-md transform rotate-12 border-2 border-white">
                 <span className="text-[7px] font-bold uppercase leading-none">Save</span>
                 <span className="text-sm font-black leading-none -mt-0.5">{Math.round(savings)}</span>
-                {/* Calligraphic Symbol - White Variant */}
+                {/* Calligraphic Symbol - White Variant - SMALL SIZE */}
                 <InlineSvg 
                    url="https://upload.wikimedia.org/wikipedia/commons/9/98/Saudi_Riyal_Symbol.svg" 
-                   className="w-4 h-4 -mt-1" 
+                   className="w-2.5 h-2.5 -mt-0.5" 
                    color="#ffffff" 
                 />
             </div>
