@@ -229,8 +229,10 @@ const App: React.FC = () => {
         margin: 0,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 }, 
-        jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait', compress: true } 
+        // Added pagebreak mode to respect CSS breaks and windowWidth to fix mobile generation
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 794 }, 
+        jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait', compress: true },
+        pagebreak: { mode: ['css', 'legacy'] }
         };
         
         html2pdf().set(opt).from(element).save().then(() => {
@@ -249,38 +251,52 @@ const App: React.FC = () => {
   const productPages = chunkProducts(products, ITEMS_PER_PAGE);
 
   // --- CUSTOM ICONS FOR BACK COVER (Raw SVG to force Yellow) ---
+  // Explicit colors for back cover icons
+  const BackCoverIconProps = {
+    xmlns: "http://www.w3.org/2000/svg",
+    width: "24",
+    height: "24",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "#facc15", // Explicit Yellow
+    strokeWidth: "2",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    style: { color: '#facc15' } // CSS Backup
+  };
+
   const PhoneIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="#facc15">
+    <svg {...BackCoverIconProps}>
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
     </svg>
   );
   const GlobeIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="#facc15">
+    <svg {...BackCoverIconProps}>
       <circle cx="12" cy="12" r="10" />
       <line x1="2" y1="12" x2="22" y2="12" />
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </svg>
   );
   const MailIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="#facc15">
+    <svg {...BackCoverIconProps}>
       <rect width="20" height="16" x="2" y="4" rx="2" />
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
     </svg>
   );
   const FacebookIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="#facc15">
+    <svg {...BackCoverIconProps}>
       <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
     </svg>
   );
   const InstagramIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="#facc15">
+    <svg {...BackCoverIconProps}>
       <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
       <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
       <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
     </svg>
   );
   const TwitterIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" color="#facc15">
+    <svg {...BackCoverIconProps}>
       <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-12.7 12.5S.2 12.9 1.8 10.1c2-1.3 5.8-1.5 6.7-.2-3.5.3-4.7-2.6-4.5-5.3 1 .8 2.9 1.2 4 .6C3.1 5 4.3 1 8.7 3c3.5 1.6 6.2 4.5 7.4 6.1 0-.9 0-2.2-.5-3.1 1.3.3 2.5 1.1 3.8 2 0-.6-.5-1.4-1-2 1 .3 2 1.2 3 1.9z" />
     </svg>
   );
@@ -383,7 +399,7 @@ const App: React.FC = () => {
                 <div id="magazine-content" className="w-[794px] mx-auto shadow-2xl print:shadow-none bg-slate-300 print:bg-white gap-8 flex flex-col print:block">
                   
                   {/* --- FRONT COVER PAGE --- */}
-                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none">
+                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none" style={{ pageBreakAfter: 'always' }}>
                       <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                       <div className="z-10 flex flex-col items-center gap-8">
                           {headerLogo && (
@@ -407,7 +423,7 @@ const App: React.FC = () => {
 
                   {/* --- PRODUCT PAGES --- */}
                   {productPages.map((pageProducts, pageIndex) => (
-                    <div key={pageIndex} className="bg-white relative w-[794px] h-[1115px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none">
+                    <div key={pageIndex} className="bg-white relative w-[794px] h-[1120px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none" style={{ pageBreakAfter: 'always' }}>
                         <div className="px-10 pt-12 pb-6 flex-grow bg-slate-50/50">
                             <div className="grid grid-cols-3 grid-rows-2 gap-4 mx-auto justify-items-center w-full h-full content-start">
                                 {pageProducts.map((product) => (
@@ -424,7 +440,7 @@ const App: React.FC = () => {
                   ))}
 
                   {/* --- BACK COVER PAGE --- */}
-                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none">
+                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none" style={{ pageBreakAfter: 'always' }}>
                       <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                       <div className="z-10 w-full max-w-lg flex flex-col items-center gap-10">
                           <div className="text-center">

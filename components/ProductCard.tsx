@@ -20,16 +20,18 @@ const InlineSvg = ({ url, className, color }: { url: string, className?: string,
         if (!response.ok) throw new Error('Failed to load SVG');
         let text = await response.text();
         
+        // Strip existing attributes to force our color
         text = text.replace(/<\?xml.*?\?>/, '').replace(/<!DOCTYPE.*?>/, '');
         text = text.replace(/style=['"][^'"]*['"]/g, '');
         text = text.replace(/fill=['"][^'"]*['"]/g, '');
         text = text.replace(/stroke=['"][^'"]*['"]/g, '');
         text = text.replace(/<svg/, `<svg fill="${color}"`);
         
+        // Aggressive CSS injection to force color on all elements
         const styleBlock = `<style>
           svg, g, path, rect, circle, polygon { 
             fill: ${color} !important; 
-            stroke: ${color} !important; 
+            stroke: none !important; 
             stroke-width: 0 !important; 
           }
         </style>`;
@@ -56,7 +58,8 @@ const InlineSvg = ({ url, className, color }: { url: string, className?: string,
 
 // CUSTOM PROMO ICONS (Raw SVG to guarantee Yellow Color)
 const PromoIcon = ({ type }: { type: 'flame' | 'cart' | 'gift' | 'star' }) => {
-  const strokeColor = "#facc15"; // Yellow
+  // Explicit yellow color hardcoded
+  const strokeColor = "#facc15"; 
   const commonProps = {
     xmlns: "http://www.w3.org/2000/svg",
     width: "12",
@@ -65,8 +68,10 @@ const PromoIcon = ({ type }: { type: 'flame' | 'cart' | 'gift' | 'star' }) => {
     fill: "none",
     stroke: strokeColor,
     strokeWidth: "3",
-    strokeLinecap: "round" as "round",
-    strokeLinejoin: "round" as "round",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    // Double down with explicit CSS style to survive PDF engine processing
+    style: { stroke: '#facc15', color: '#facc15' }
   };
 
   switch (type) {
@@ -281,10 +286,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
                </span>
              )}
              <div className="flex items-end text-blue-900 leading-none">
-                {/* Calligraphic Symbol - Blue Variant */}
+                {/* Calligraphic Symbol - Blue Variant (SMALLER SIZE & NO BOLD) */}
                 <InlineSvg 
                    url="https://upload.wikimedia.org/wikipedia/commons/9/98/Saudi_Riyal_Symbol.svg" 
-                   className="w-6 h-6 mb-1 mr-1" 
+                   className="w-3.5 h-3.5 mb-2 mr-1" 
                    color="#1e3a8a" 
                 />
                 <span className="text-3xl font-black tracking-tighter">
