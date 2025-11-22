@@ -261,30 +261,32 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
              {products.length > 0 && (
                <>
-                {/* SHARE LINK BUTTONS */}
-                <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200">
-                    {generatedUrl && (
-                        <a 
-                          href={generatedUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-3 py-2 rounded-md font-medium text-slate-600 hover:text-blue-600 hover:bg-white transition-all"
-                          title="Open Link"
-                        >
-                            <ExternalLink className="w-4 h-4" />
-                            <span className="text-xs">Test Link</span>
-                        </a>
-                    )}
-                    <button 
-                      onClick={handleGenerateLink} 
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-sm border ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
-                    >
-                       {isCopied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
-                       <span>{isCopied ? 'Copied!' : 'Generate Link'}</span>
-                    </button>
-                </div>
+                {/* SHARE LINK BUTTONS - ONLY IN EDITOR MODE */}
+                {!isViewerMode && (
+                  <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200">
+                      {generatedUrl && (
+                          <a 
+                            href={generatedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 rounded-md font-medium text-slate-600 hover:text-blue-600 hover:bg-white transition-all"
+                            title="Open Link"
+                          >
+                              <ExternalLink className="w-4 h-4" />
+                              <span className="text-xs">Test Link</span>
+                          </a>
+                      )}
+                      <button 
+                        onClick={handleGenerateLink} 
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-sm border ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
+                      >
+                         {isCopied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                         <span>{isCopied ? 'Copied!' : 'Generate Link'}</span>
+                      </button>
+                  </div>
+                )}
 
-                {/* Show Editor Buttons only if NOT in Viewer Mode */}
+                {/* Show Clear Button only if NOT in Viewer Mode */}
                 {!isViewerMode && (
                   <button onClick={clearAll} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Clear All">
                     <Trash2 className="w-5 h-5" />
