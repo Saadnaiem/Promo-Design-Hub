@@ -411,8 +411,12 @@ const App: React.FC = () => {
                           <h1 className="text-6xl font-black text-center uppercase tracking-tight leading-tight font-inter max-w-[680px] drop-shadow-lg">
                               {renderStylizedTitle(magazineTitle)}
                           </h1>
-                          <div className="mt-8 px-6 py-2 border-2 border-green-400/50 rounded-full">
-                              <span className="text-sm font-bold uppercase tracking-[0.4em] text-green-100">Monthly Offers</span>
+                          
+                          {/* UPDATED: Large, Bold, Prominent Monthly Offers Text */}
+                          <div className="mt-12 text-center">
+                              <span className="text-5xl font-black uppercase tracking-widest text-white drop-shadow-2xl">
+                                Monthly Offers
+                              </span>
                           </div>
                       </div>
                       
@@ -433,8 +437,9 @@ const App: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                        <div className="bg-white text-slate-400 h-12 print:bg-white flex items-center justify-center px-8 border-t border-slate-100">
-                          <span className="text-[10px] font-mono">- {pageIndex + 1} -</span>
+                        {/* UPDATED FOOTER: Larger, Bolder Page Number */}
+                        <div className="bg-white text-slate-400 h-16 print:bg-white flex items-center justify-center px-8 border-t border-slate-100">
+                          <span className="text-2xl font-black text-slate-400">- {pageIndex + 1} -</span>
                         </div>
                     </div>
                   ))}
