@@ -1,6 +1,7 @@
+
 import React, { useCallback, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, AlertCircle, Calendar } from 'lucide-react';
+import { Upload, FileSpreadsheet, Calendar } from 'lucide-react';
 import { RawProductRow } from '../types';
 
 interface FileUploadProps {
@@ -207,15 +208,6 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
           onChange={handleFileUpload}
         />
       </label>
-      
-      <div className="mt-2 flex items-start gap-2 p-3 bg-blue-50 text-blue-800 rounded-lg text-xs border border-blue-100">
-        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-bold mb-1">Formatting Tip:</p>
-          <p>Ensure your Excel file has headers like <span className="font-mono bg-blue-100 px-1 rounded">SKU</span>, <span className="font-mono bg-blue-100 px-1 rounded">Name</span>, <span className="font-mono bg-blue-100 px-1 rounded">Price</span>, <span className="font-mono bg-blue-100 px-1 rounded">Mechanics</span>.</p>
-          <p className="mt-1 opacity-80">To change the Header Logo: Add a row with SKU <span className="font-mono bg-blue-100 px-1 rounded">Logo</span> and put the link in the Image column.</p>
-        </div>
-      </div>
     </div>
   );
 };
