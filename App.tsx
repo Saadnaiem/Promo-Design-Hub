@@ -229,9 +229,20 @@ const App: React.FC = () => {
         margin: 0,
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        // Added pagebreak mode to respect CSS breaks and windowWidth to fix mobile generation
-        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, windowWidth: 794 }, 
-        jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait', compress: true },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false, 
+            scrollY: 0, 
+            windowWidth: 794, // Forces desktop view on mobile
+            width: 794 // Ensures full width capture
+        }, 
+        jsPDF: { 
+            unit: 'px', 
+            format: [794, 1123], // Standard A4 at 96dpi
+            orientation: 'portrait', 
+            compress: true 
+        },
         pagebreak: { mode: ['css', 'legacy'] }
         };
         
@@ -274,7 +285,7 @@ const App: React.FC = () => {
     <svg {...BackCoverIconProps}>
       <circle cx="12" cy="12" r="10" />
       <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z" />
     </svg>
   );
   const MailIcon = () => (
