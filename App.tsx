@@ -22,13 +22,25 @@ const App: React.FC = () => {
   // Responsive Scaling State
   const [zoomScale, setZoomScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // PDF Generation State
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const ITEMS_PER_PAGE = 6;
+  const chunkProducts = (arr: ProcessedProduct[], size: number) => {
+    return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+      arr.slice(i * size, i * size + size)
+    );
+  };
+  const productPages = chunkProducts(products, ITEMS_PER_PAGE);
 
   // --- RESPONSIVE SCALING LOGIC ---
   const handleResize = () => {
     if (containerRef.current) {
-      // Available width minus padding (32px total for p-4)
-      const availableWidth = window.innerWidth - 32;
-      const targetWidth = 794; // A4 Pixel Width
+      // Available width minus padding (32px total for p-4 on desktop, 16px on mobile)
+      const padding = window.innerWidth < 768 ? 16 : 32;
+      const availableWidth = window.innerWidth - padding;
+      const targetWidth = 794; // Exact pixel width of A4 at 96 DPI
       
       // Calculate scale: if screen is smaller than A4, shrink it. Max scale is 1.
       const newScale = Math.min(1, availableWidth / targetWidth);
@@ -41,6 +53,14 @@ const App: React.FC = () => {
     handleResize(); // Initial check
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Calculate total height for negative margin correction on mobile
+  // Total Pages = Front + Back + Product Pages
+  const totalPages = products.length > 0 ? 2 + productPages.length : 0;
+  // Height per page = 1122px
+  // Gap = 32px (when not downloading) or 0 (when downloading)
+  const gapHeight = isDownloading ? 0 : 32;
+  const totalContentHeight = (totalPages * 1122) + (Math.max(0, totalPages - 1) * gapHeight);
 
   // --- INITIALIZATION: CHECK URL FOR SHARED DATA ---
   useEffect(() => {
@@ -208,6 +228,7 @@ const App: React.FC = () => {
     // CRITICAL: Temporarily reset scale to 1 for full resolution capture
     const currentScale = zoomScale;
     setZoomScale(1);
+    setIsDownloading(true);
 
     // Wait for render cycle to update scale
     setTimeout(() => {
@@ -216,6 +237,7 @@ const App: React.FC = () => {
         if (!html2pdf) { 
             alert('PDF generator initializing...'); 
             setZoomScale(currentScale); // Restore scale if failing
+            setIsDownloading(false);
             return; 
         }
         
@@ -226,54 +248,53 @@ const App: React.FC = () => {
         }
 
         const opt = {
-        margin: 0,
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false, 
-            scrollY: 0, 
-            windowWidth: 794, // Forces desktop view on mobile
-            width: 794 // Ensures full width capture
-        }, 
-        jsPDF: { 
-            unit: 'px', 
-            format: [794, 1123], // Standard A4 at 96dpi
-            orientation: 'portrait', 
-            compress: true 
-        },
-        pagebreak: { mode: ['css', 'legacy'] }
+          margin: 0,
+          filename: filename,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { 
+              scale: 2, 
+              useCORS: true, 
+              logging: false, 
+              scrollY: 0,
+              x: 0,
+              windowWidth: 794, // Force Desktop A4 view to prevent shifting on mobile
+              width: 794,       // Lock capture width
+              // NO HEIGHT CONSTRAINT - allows capturing all pages
+          }, 
+          jsPDF: { 
+              unit: 'px',  
+              format: [794, 1123], // Standard A4 at 96 DPI
+              orientation: 'portrait', 
+              compress: true 
+          },
+          // Disable auto page breaking logic that creates blanks, use manual CSS flow
+          pagebreak: { mode: ['css', 'legacy'] } 
         };
         
         html2pdf().set(opt).from(element).save().then(() => {
             // Restore responsive scale after download
             setZoomScale(currentScale);
+            setIsDownloading(false);
         });
-    }, 100);
+    }, 200);
   };
 
-  const ITEMS_PER_PAGE = 6;
-  const chunkProducts = (arr: ProcessedProduct[], size: number) => {
-    return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
-      arr.slice(i * size, i * size + size)
-    );
-  };
-  const productPages = chunkProducts(products, ITEMS_PER_PAGE);
-
-  // --- CUSTOM ICONS FOR BACK COVER (Raw SVG to force Yellow) ---
-  // Explicit colors for back cover icons
+  // --- CUSTOM ICONS FOR BACK COVER (Raw SVG to force WHITE) ---
+  // Color: #ffffff (White) - but requests asked for Yellow previously. 
+  // Re-reading prompts: "make back cover page icons white colour" (latest)
+  // Keeping White (#ffffff) as per latest instruction.
   const BackCoverIconProps = {
     xmlns: "http://www.w3.org/2000/svg",
     width: "24",
     height: "24",
     viewBox: "0 0 24 24",
     fill: "none",
-    stroke: "#facc15", // Explicit Yellow
+    stroke: "#ffffff", // Explicit WHITE
     strokeWidth: "2",
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    style: { color: '#facc15' } // CSS Backup
+    // USE !important to override any browser or library defaults
+    style: { color: '#ffffff', stroke: '#ffffff !important' } as React.CSSProperties
   };
 
   const PhoneIcon = () => (
@@ -316,22 +337,31 @@ const App: React.FC = () => {
     <div ref={containerRef} className="min-h-screen bg-slate-200 pb-20 print:bg-white print:pb-0 font-inter overflow-x-hidden">
       <header className="bg-white border-b border-slate-300 sticky top-0 z-30 print:hidden shadow-sm">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4 md:h-16 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
-          <div className="flex items-center gap-2">
-            <div className="bg-[#007d40] p-2 rounded-lg shadow-sm">
-              <BookOpen className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+            <div className="flex items-center gap-2">
+                <div className="bg-[#007d40] p-2 rounded-lg shadow-sm">
+                <BookOpen className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-none text-left">
+                    {isViewerMode ? "Al Habib Pharmacy Promo Magazine" : "Promo Magazine Design Hub"}
+                </h1>
+                </div>
             </div>
-            <div>
-              <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-none text-center md:text-left">
-                {isViewerMode ? "Al Habib Pharmacy Promo Magazine" : "Promo Magazine Design Hub"}
-              </h1>
-            </div>
+            {/* Mobile PDF Button (Shown in header row on mobile) */}
+            {products.length > 0 && (
+                <button onClick={handleDownloadPDF} className="flex md:hidden items-center justify-center p-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm">
+                    <Download className="w-5 h-5" />
+                </button>
+            )}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
+          
+          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 w-full md:w-auto">
              {products.length > 0 && (
                <>
                 {/* SHARE LINK BUTTONS - ONLY IN EDITOR MODE */}
                 {!isViewerMode && (
-                  <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200">
+                  <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-200 w-full md:w-auto justify-center">
                       {generatedUrl && (
                           <a 
                             href={generatedUrl}
@@ -346,7 +376,7 @@ const App: React.FC = () => {
                       )}
                       <button 
                         onClick={handleGenerateLink} 
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all shadow-sm border text-sm ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all shadow-sm border text-sm flex-1 md:flex-none justify-center ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
                       >
                          {isCopied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
                          <span>{isCopied ? 'Copied!' : 'Link'}</span>
@@ -361,7 +391,8 @@ const App: React.FC = () => {
                   </button>
                 )}
 
-                <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm text-sm">
+                {/* Desktop PDF Button */}
+                <button onClick={handleDownloadPDF} className="hidden md:flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm text-sm">
                   <Download className="w-4 h-4" />
                   <span>PDF</span>
                 </button>
@@ -371,10 +402,10 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="w-full mx-auto p-4 md:p-8 print:p-0 print:w-full flex justify-center">
+      <main className="w-full mx-auto p-2 md:p-8 print:p-0 print:w-full flex justify-center">
         {products.length === 0 ? (
           <div className="mt-6 md:mt-10 w-full max-w-[1400px]">
-            <div className="text-center mb-8 md:mb-10">
+            <div className="text-center mb-8 md:mb-10 px-4">
               <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Create Your Promo Magazine</h2>
               <p className="text-slate-500 max-w-xl mx-auto text-sm md:text-base">
                 Upload your Excel file to generate an A4 Catalog.<br/>
@@ -393,24 +424,29 @@ const App: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="w-full flex justify-center">
+          <div className="w-full flex justify-center overflow-hidden">
              {/* 
                 MAGAZINE PREVIEW CONTAINER 
-                Scales down on small screens to fit viewport, but maintains strict 794px width internally 
+                Using EXACT PIXELS (794px x 1122px) to match A4 @ 96DPI
              */}
              <div 
                 style={{ 
                   transform: `scale(${zoomScale})`, 
                   transformOrigin: 'top center',
-                  // Adjust margin bottom to account for the whitespace created by scaling down
-                  marginBottom: `-${(1 - zoomScale) * 1122}px` 
+                  marginBottom: `-${(1 - zoomScale) * totalContentHeight}px` 
                 }}
                 className="transition-transform duration-300 ease-out"
              >
-                <div id="magazine-content" className="w-[794px] mx-auto shadow-2xl print:shadow-none bg-slate-300 print:bg-white gap-8 flex flex-col print:block">
+                {/* 
+                    ADDED gap-0 during download to ensure seamless stacking in PDF 
+                    Removed explicit pageBreakAfter from children 
+                */}
+                <div id="magazine-content" className={`w-[794px] mx-auto shadow-2xl print:shadow-none bg-slate-300 print:bg-white flex flex-col print:block ${isDownloading ? 'gap-0' : 'gap-8'}`}>
                   
-                  {/* --- FRONT COVER PAGE --- */}
-                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none" style={{ pageBreakAfter: 'always' }}>
+                  {/* --- FRONT COVER PAGE --- 
+                      Height 1122px (Exact A4)
+                  */}
+                  <div className={`bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-0' : 'mb-8'}`}>
                       <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                       <div className="z-10 flex flex-col items-center gap-8">
                           {headerLogo && (
@@ -419,14 +455,17 @@ const App: React.FC = () => {
                               </div>
                           )}
                           <div className="h-1 w-32 bg-white mb-4"></div>
-                          <h1 className="text-6xl font-black text-center uppercase tracking-tight leading-tight font-inter max-w-[680px] drop-shadow-lg">
+                          <h1 className="text-6xl font-black text-center uppercase tracking-tight leading-tight font-inter max-w-[700px] drop-shadow-lg">
                               {renderStylizedTitle(magazineTitle)}
                           </h1>
                           
-                          {/* UPDATED: Large, Bold, Prominent Monthly Offers Text */}
-                          <div className="mt-12 text-center">
-                              <span className="text-5xl font-black uppercase tracking-widest text-white drop-shadow-2xl">
+                          {/* Large, Bold, Prominent Monthly Offers Text - NOW YELLOW WITH ARABIC */}
+                          <div className="mt-12 text-center flex flex-col items-center gap-2">
+                              <span className="text-5xl font-black uppercase tracking-widest text-yellow-400 drop-shadow-2xl">
                                 Monthly Offers
+                              </span>
+                              <span className="text-4xl font-black font-cairo text-yellow-400 drop-shadow-xl">
+                                العروض الشهرية
                               </span>
                           </div>
                       </div>
@@ -436,10 +475,13 @@ const App: React.FC = () => {
                       </div>
                   </div>
 
-                  {/* --- PRODUCT PAGES --- */}
+                  {/* --- PRODUCT PAGES --- 
+                      Height 1122px (Exact A4) - NO manual pageBreakAfter
+                  */}
                   {productPages.map((pageProducts, pageIndex) => (
-                    <div key={pageIndex} className="bg-white relative w-[794px] h-[1120px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none" style={{ pageBreakAfter: 'always' }}>
-                        <div className="px-10 pt-12 pb-6 flex-grow bg-slate-50/50">
+                    <div key={pageIndex} className={`bg-white relative w-[794px] h-[1122px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-0' : 'mb-8'}`}>
+                        {/* Reduced top padding to pt-5 for smaller top margin */}
+                        <div className="px-10 pt-5 pb-6 flex-grow bg-slate-50/50">
                             <div className="grid grid-cols-3 grid-rows-2 gap-4 mx-auto justify-items-center w-full h-full content-start">
                                 {pageProducts.map((product) => (
                                     <div key={product.id} className="w-full h-full">
@@ -448,15 +490,16 @@ const App: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                        {/* UPDATED FOOTER: Larger, Bolder Page Number */}
                         <div className="bg-white text-slate-400 h-16 print:bg-white flex items-center justify-center px-8 border-t border-slate-100">
-                          <span className="text-2xl font-black text-slate-400">- {pageIndex + 1} -</span>
+                          <span className="text-2xl font-black text-blue-900">- {pageIndex + 1} -</span>
                         </div>
                     </div>
                   ))}
 
-                  {/* --- BACK COVER PAGE --- */}
-                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none" style={{ pageBreakAfter: 'always' }}>
+                  {/* --- BACK COVER PAGE --- 
+                      Height 1122px (Exact A4)
+                  */}
+                  <div className={`bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-0' : 'mb-8'}`}>
                       <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                       <div className="z-10 w-full max-w-lg flex flex-col items-center gap-10">
                           <div className="text-center">
@@ -470,7 +513,7 @@ const App: React.FC = () => {
                               </div>
                               <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
                                   <div className="p-2 rounded-full border border-white/20"><GlobeIcon /></div>
-                                  <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Visit our Website</p><p className="text-lg font-bold">www.alhabibpharmacy.com</p></div>
+                                  <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Visit our Website</p><a href="https://www.alhabibpharmacy.com" target="_blank" rel="noopener noreferrer" className="text-lg font-bold hover:underline">www.alhabibpharmacy.com</a></div>
                               </div>
                               <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
                                   <div className="p-2 rounded-full border border-white/20"><MailIcon /></div>

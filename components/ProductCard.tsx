@@ -10,8 +10,10 @@ interface ProductCardProps {
 }
 
 // INLINE SVG COMPONENT for Saudi Riyal
+// UPDATED: Uses unique ID scoping to prevent styles from leaking to other icons
 const InlineSvg = ({ url, className, color }: { url: string, className?: string, color: string }) => {
   const [svgContent, setSvgContent] = useState<string>('');
+  const [uniqueId] = useState(`svg-${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
     const fetchSvg = async () => {
@@ -20,23 +22,21 @@ const InlineSvg = ({ url, className, color }: { url: string, className?: string,
         if (!response.ok) throw new Error('Failed to load SVG');
         let text = await response.text();
         
-        // Strip existing attributes to force our color
+        // Strip existing attributes/styles that might conflict
         text = text.replace(/<\?xml.*?\?>/, '').replace(/<!DOCTYPE.*?>/, '');
         text = text.replace(/style=['"][^'"]*['"]/g, '');
         text = text.replace(/fill=['"][^'"]*['"]/g, '');
         text = text.replace(/stroke=['"][^'"]*['"]/g, '');
-        text = text.replace(/<svg/, `<svg fill="${color}"`);
         
-        // Aggressive CSS injection to force color on all elements
+        // Scoped Style Block: Targets ONLY this specific wrapper ID
         const styleBlock = `<style>
-          svg, g, path, rect, circle, polygon { 
+          #${uniqueId} svg, #${uniqueId} g, #${uniqueId} path, #${uniqueId} rect, #${uniqueId} circle { 
             fill: ${color} !important; 
             stroke: none !important; 
-            stroke-width: 0 !important; 
           }
         </style>`;
         
-        text = text.replace(/<\/svg>/, `${styleBlock}</svg>`);
+        text = styleBlock + text;
         setSvgContent(text);
       } catch (e) {
         console.error("Error loading SVG", e);
@@ -44,34 +44,39 @@ const InlineSvg = ({ url, className, color }: { url: string, className?: string,
     };
 
     fetchSvg();
-  }, [url, color]);
+  }, [url, color, uniqueId]);
 
   if (!svgContent) return <span className={className}></span>;
 
   return (
     <span 
+      id={uniqueId}
       className={`${className} inline-block [&>svg]:w-full [&>svg]:h-full`}
       dangerouslySetInnerHTML={{ __html: svgContent }}
     />
   );
 };
 
-// CUSTOM PROMO ICONS (Raw SVG to guarantee Yellow Color)
+// CUSTOM PROMO ICONS (Raw SVG to guarantee YELLOW Color)
 const PromoIcon = ({ type }: { type: 'flame' | 'cart' | 'gift' | 'star' }) => {
-  // Explicit yellow color hardcoded
+  // Explicit YELLOW color hardcoded (#facc15)
   const strokeColor = "#facc15"; 
   const commonProps = {
     xmlns: "http://www.w3.org/2000/svg",
-    width: "12",
-    height: "12",
+    width: "14", // Slightly larger
+    height: "14",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: strokeColor,
-    strokeWidth: "3",
+    strokeWidth: "3.5", // BOLD STROKE
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    // Double down with explicit CSS style to survive PDF engine processing
-    style: { stroke: '#facc15', color: '#facc15' }
+    // Inline styles to override any external CSS
+    style: { 
+        stroke: '#facc15', 
+        color: '#facc15',
+        fill: 'none'
+    } as React.CSSProperties
   };
 
   switch (type) {
@@ -149,14 +154,21 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
 
   const promoConfig = getPromoConfig(product.discountLabel);
 
-  // Define the yellow color explicitly
-  const ICON_COLOR_HEX = "#facc15";
-
   // Check if it is BOGO to hide redundant text
   const isBogo = promoConfig.text === 'BUY 1 GET 1 FREE';
 
+  // Construct Search URL for Al Habib Pharmacy
+  // Using format: https://alhabibpharmacy.com/en-sa/category/keyword=SKU
+  const searchUrl = `https://alhabibpharmacy.com/en-sa/category/keyword=${product.sku}`;
+
   return (
-    <div className="group relative h-full bg-white flex flex-col border border-gray-200 shadow-sm overflow-hidden rounded-2xl hover:border-[#007d40] hover:shadow-lg transition-all duration-200 print:break-inside-avoid w-full">
+    <a 
+      href={searchUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group relative h-full bg-white flex flex-col border border-gray-200 shadow-sm overflow-hidden rounded-2xl hover:border-[#007d40] hover:shadow-lg transition-all duration-200 print:break-inside-avoid w-full cursor-pointer no-underline"
+      title="Click to view product details"
+    >
       
       {/* FULL WIDTH PROMO BANNER - Modernized with Icons */}
       <div className={`${badgeBg} py-1.5 shadow-sm z-10 print:bg-[#007d40] flex flex-col items-center justify-center leading-tight min-h-[3.5rem] relative overflow-hidden`}>
@@ -164,12 +176,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
         
         <div className="z-10 flex items-center gap-1.5 mb-0.5">
-            {/* Custom Icons in YELLOW */}
+            {/* Custom Icons in YELLOW (#facc15) */}
             <PromoIcon type={promoConfig.iconType} />
             
             <span 
                 className="font-black text-[10px] uppercase tracking-widest" 
-                style={{ color: ICON_COLOR_HEX }}
+                style={{ color: '#facc15' }}
             >
                 {promoConfig.text}
             </span>
@@ -179,14 +191,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
         
         {/* English Discount Label: Hide if BOGO (redundant), show otherwise */}
         {!isBogo && (
-            <h3 className="font-bold text-sm uppercase tracking-wide z-10 px-2 text-center leading-none" style={{ color: '#ffffff' }}>
+            <h3 
+              className="font-black text-sm uppercase tracking-wide z-10 px-2 text-center leading-none"
+              style={{ color: '#ffffff' }}
+            >
               {product.discountLabel}
             </h3>
         )}
 
         {/* Arabic Discount Label: Always show if present */}
         {product.discountLabelAr && (
-            <h3 className="font-bold text-[10px] mt-0.5 z-10 font-cairo" style={{ color: '#ffffff' }} dir="rtl" lang="ar">
+            <h3 
+              className="font-black text-[10px] mt-0.5 z-10 font-cairo" 
+              dir="rtl" 
+              lang="ar"
+              style={{ color: '#ffffff' }}
+            >
               {product.discountLabelAr}
             </h3>
         )}
@@ -289,7 +309,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
                 {/* Calligraphic Symbol - Blue Variant (SMALLER SIZE & NO BOLD) */}
                 <InlineSvg 
                    url="https://upload.wikimedia.org/wikipedia/commons/9/98/Saudi_Riyal_Symbol.svg" 
-                   className="w-3.5 h-3.5 mb-2 mr-1" 
+                   className="w-3.5 h-3.5 mb-1.5 mr-1" 
                    color="#1e3a8a" 
                 />
                 <span className="text-3xl font-black tracking-tighter">
@@ -303,7 +323,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
         </div>
 
       </div>
-    </div>
+    </a>
   );
 };
 
