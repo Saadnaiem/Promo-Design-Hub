@@ -255,7 +255,9 @@ const App: React.FC = () => {
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800 leading-none">Promo Magazine Design Hub</h1>
+              <h1 className="text-xl font-bold text-slate-800 leading-none">
+                {isViewerMode ? "Al Habib Pharmacy Promo Magazine" : "Promo Magazine Design Hub"}
+              </h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
