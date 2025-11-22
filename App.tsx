@@ -90,6 +90,25 @@ const App: React.FC = () => {
     return "Consumer Offer Plan";
   };
 
+  // Function to color the Month name in the title
+  const renderStylizedTitle = (title: string) => {
+    const monthsRegex = /(January|February|March|April|May|June|July|August|September|October|November|December)/i;
+    const parts = title.split(monthsRegex);
+    
+    if (parts.length <= 1) return title;
+
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (monthsRegex.test(part)) {
+            return <span key={index} className="text-yellow-400">{part}</span>;
+          }
+          return <span key={index}>{part}</span>;
+        })}
+      </>
+    );
+  };
+
   const handleDataLoaded = (rawData: RawProductRow[], manualMonth?: string) => {
     let newTitle = "Consumer Offer Plan";
     
@@ -309,9 +328,9 @@ const App: React.FC = () => {
                             <div></div>
                         </div>
                         
-                        {/* Dynamic Magazine Title */}
+                        {/* Dynamic Magazine Title with Colored Month */}
                         <h1 className="text-4xl font-black text-center uppercase tracking-tight leading-none mb-1 font-inter text-white">
-                            {magazineTitle}
+                            {renderStylizedTitle(magazineTitle)}
                         </h1>
                     </div>
 
