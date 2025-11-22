@@ -230,8 +230,42 @@ const App: React.FC = () => {
     setZoomScale(1);
     setIsDownloading(true);
 
-    // Wait for render cycle to update scale
+    // Wait for render cycle to update scale and remove gaps
     setTimeout(() => {
+        // CAPTURE LINKS BEFORE GENERATING PDF
+        // We need to calculate where the links are relative to the PDF pages
+        const linksToInject: { page: number, x: number, y: number, w: number, h: number, url: string }[] = [];
+        const contentRect = element.getBoundingClientRect();
+        const anchors = element.getElementsByTagName('a');
+        const pageHeight = 1122; // PDF Page height in px
+
+        for (let i = 0; i < anchors.length; i++) {
+            const a = anchors[i];
+            const rect = a.getBoundingClientRect();
+            
+            // If element is visible
+            if (rect.width > 0 && rect.height > 0) {
+                // Calculate relative position within the magazine content
+                const top = rect.top - contentRect.top;
+                const left = rect.left - contentRect.left;
+
+                // Determine which page this link falls on
+                const pageNum = Math.floor(top / pageHeight) + 1;
+                const yOnPage = top % pageHeight;
+
+                if (a.href) {
+                    linksToInject.push({
+                        page: pageNum,
+                        x: left,
+                        y: yOnPage,
+                        w: rect.width,
+                        h: rect.height,
+                        url: a.href
+                    });
+                }
+            }
+        }
+
         // @ts-ignore
         const html2pdf = window.html2pdf;
         if (!html2pdf) { 
@@ -271,17 +305,23 @@ const App: React.FC = () => {
           pagebreak: { mode: ['css', 'legacy'] } 
         };
         
-        html2pdf().set(opt).from(element).save().then(() => {
+        html2pdf().set(opt).from(element).toPdf().get('pdf').then((pdf: any) => {
+            // INJECT CLICKABLE LINKS INTO PDF
+            linksToInject.forEach(link => {
+                // Ensure we are on the correct page
+                pdf.setPage(link.page);
+                // Add a link annotation (X, Y, W, H, Options)
+                pdf.link(link.x, link.y, link.w, link.h, { url: link.url });
+            });
+        }).save().then(() => {
             // Restore responsive scale after download
             setZoomScale(currentScale);
             setIsDownloading(false);
         });
-    }, 200);
+    }, 500); // Increased timeout slightly to ensure layout settling
   };
 
   // --- CUSTOM ICONS FOR BACK COVER (Raw SVG to force WHITE) ---
-  // Color: #ffffff (White) - but requests asked for Yellow previously. 
-  // Re-reading prompts: "make back cover page icons white colour" (latest)
   // Keeping White (#ffffff) as per latest instruction.
   const BackCoverIconProps = {
     xmlns: "http://www.w3.org/2000/svg",
