@@ -5,7 +5,7 @@ import FileUpload from './components/FileUpload';
 import ProductCard from './components/ProductCard';
 import ResilientImage from './components/ResilientImage';
 import { processLocalData } from './services/geminiService';
-import { Trash2, Download, BookOpen, Link as LinkIcon, Check, ExternalLink } from 'lucide-react';
+import { Trash2, Download, BookOpen, Link as LinkIcon, Check, ExternalLink, Loader2 } from 'lucide-react';
 import LZString from 'lz-string';
 
 const App: React.FC = () => {
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [isViewerMode, setIsViewerMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   // Responsive Scaling State
   const [zoomScale, setZoomScale] = useState(1);
@@ -62,6 +63,45 @@ const App: React.FC = () => {
   const gapHeight = isDownloading ? 0 : 32;
   const totalContentHeight = (totalPages * 1122) + (Math.max(0, totalPages - 1) * gapHeight);
 
+  // --- DATA OPTIMIZATION (MINIFICATION) ---
+  // Converts complex object array to simple array of arrays to save space in URL
+  // [SKU, Name, NameAr, Price, Mechanics, MechanicsAr, Image, Logo]
+  const minifyData = (products: ProcessedProduct[]) => {
+    return products.map(p => [
+        p.sku,                  // 0
+        p.name,                 // 1
+        p.nameAr || '',         // 2
+        p.originalPrice,        // 3
+        p.originalMechanics,    // 4
+        p.discountLabelAr || '',// 5
+        p.imageUrl,             // 6
+        p.logoUrl || ''         // 7
+    ]);
+  };
+
+  const restoreFromMinified = (minifiedProducts: any[]) => {
+    return minifiedProducts.map(m => {
+        // Re-run the processing logic to calculate final prices/labels
+        // This saves us from storing calculated fields in the URL
+        const raw: RawProductRow = {
+            SKU: m[0],
+            Name: m[1],
+            NameAr: m[2],
+            Price: m[3],
+            Mechanics: m[4],
+            MechanicsAr: m[5],
+            Image: m[6],
+            Logo: m[7]
+        };
+        const processed = processLocalData(raw);
+        // Override image/logo with direct values (bypassing logic if needed)
+        processed.imageUrl = m[6];
+        processed.logoUrl = m[7];
+        // Logic inside processLocalData handles price calculation based on mechanics
+        return processed;
+    });
+  };
+
   // --- INITIALIZATION: CHECK URL FOR SHARED DATA ---
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -72,11 +112,21 @@ const App: React.FC = () => {
         const decompressed = LZString.decompressFromEncodedURIComponent(compressedData);
         if (decompressed) {
           const parsed = JSON.parse(decompressed);
-          if (parsed.products && Array.isArray(parsed.products)) {
-            setProducts(parsed.products);
+          
+          let loadedProducts: ProcessedProduct[] = [];
+
+          // Check if data is Minified (Array of Arrays) or Legacy (Array of Objects)
+          if (parsed.minified && Array.isArray(parsed.minified)) {
+             loadedProducts = restoreFromMinified(parsed.minified);
+          } else if (parsed.products && Array.isArray(parsed.products)) {
+             loadedProducts = parsed.products; // Legacy support
+          }
+
+          if (loadedProducts.length > 0) {
+            setProducts(loadedProducts);
             setMagazineTitle(parsed.title || "Consumer Offer Plan");
             setHeaderLogo(parsed.logo || "https://alhabibpharmacy.com/media/logo/stores/3/En-Logo.png");
-            setIsViewerMode(true); // Enable Viewer Mode (Hides editor tools)
+            setIsViewerMode(true); // Enable Viewer Mode
           }
         }
       } catch (e) {
@@ -191,33 +241,56 @@ const App: React.FC = () => {
     window.history.pushState({}, document.title, window.location.pathname);
   };
 
-  // --- GENERATE SHAREABLE LINK ---
-  const handleGenerateLink = () => {
+  // --- GENERATE SHAREABLE LINK (OPTIMIZED) ---
+  const handleGenerateLink = async () => {
+    setIsGeneratingLink(true);
+    setGeneratedUrl(null);
+
+    // 1. Minify Data (Convert Objects to Arrays)
+    const minifiedProducts = minifyData(products);
+
     const payload = {
       title: magazineTitle,
       logo: headerLogo,
-      products: products
+      minified: minifiedProducts // Use new efficient format
     };
     
     try {
       const jsonString = JSON.stringify(payload);
       const compressed = LZString.compressToEncodedURIComponent(jsonString);
-      const shareUrl = `${window.location.origin}${window.location.pathname}?data=${compressed}`;
+      const longUrl = `${window.location.origin}${window.location.pathname}?data=${compressed}`;
       
-      // Check for URL length limits
-      if (shareUrl.length > 8000) {
-        alert("The magazine data is too large to generate a direct link (exceeds 8kb). Please reduce the number of products or download the PDF instead.");
-        return;
+      // 2. Attempt to Shorten with TinyURL API
+      try {
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        if (response.ok) {
+            const shortUrl = await response.text();
+            setGeneratedUrl(shortUrl);
+            navigator.clipboard.writeText(shortUrl);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 3000);
+            setIsGeneratingLink(false);
+            return;
+        }
+      } catch (apiError) {
+        console.warn("TinyURL API failed (likely length or CORS), falling back to long URL", apiError);
       }
 
-      setGeneratedUrl(shareUrl);
-      navigator.clipboard.writeText(shareUrl).then(() => {
+      // 3. Fallback to Long (but optimized) URL if Shortener fails
+      if (longUrl.length > 8000) {
+        alert("The magazine is extremely large. The generated link might be too long for some browsers. Consider removing items.");
+      }
+
+      setGeneratedUrl(longUrl);
+      navigator.clipboard.writeText(longUrl).then(() => {
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 3000);
       });
     } catch (e) {
       console.error("Compression failed", e);
       alert("Failed to generate link.");
+    } finally {
+        setIsGeneratingLink(false);
     }
   };
 
@@ -416,10 +489,11 @@ const App: React.FC = () => {
                       )}
                       <button 
                         onClick={handleGenerateLink} 
+                        disabled={isGeneratingLink}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all shadow-sm border text-sm flex-1 md:flex-none justify-center ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
                       >
-                         {isCopied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
-                         <span>{isCopied ? 'Copied!' : 'Link'}</span>
+                         {isGeneratingLink ? <Loader2 className="w-4 h-4 animate-spin" /> : (isCopied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />)}
+                         <span>{isGeneratingLink ? 'Shortening...' : (isCopied ? 'Copied!' : 'Short Link')}</span>
                       </button>
                   </div>
                 )}

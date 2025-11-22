@@ -158,8 +158,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
   const isBogo = promoConfig.text === 'BUY 1 GET 1 FREE';
 
   // Construct Search URL for Al Habib Pharmacy
-  // Using robust catalogsearch format which works universally on mobile/desktop
-  const searchUrl = `https://alhabibpharmacy.com/en-sa/catalogsearch/result/?q=${product.sku}`;
+  // Using the specific category/keyword format requested by the user
+  const searchUrl = `https://alhabibpharmacy.com/en-sa/category/keyword=${product.sku}`;
 
   return (
     <a 
