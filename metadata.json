@@ -1,0 +1,5 @@
+{
+  "name": "Promo Magazine Design Hub",
+  "description": "An AI-powered tool to generate attractive promotional magazine layouts from Excel sheets using Gemini to enrich product data and calculate prices.",
+  "requestFramePermissions": []
+}
