@@ -160,7 +160,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
   }, [onDataLoaded, onLogoFound, monthInput]);
 
   return (
-    <div className="w-full max-w-xl mx-auto space-y-4">
+    <div className="w-full max-w-xl mx-auto space-y-4 px-2 sm:px-0">
       {/* Manual Month Input */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <label htmlFor="month-input" className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -184,7 +184,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
         htmlFor="file-upload" 
         className="flex flex-col items-center justify-center w-full h-56 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-blue-400 transition-all group"
       >
-        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+        <div className="flex flex-col items-center justify-center pt-5 pb-6 px-4 text-center">
           <div className="bg-white p-4 rounded-full shadow-sm mb-4 group-hover:scale-110 transition-transform">
              <Upload className="w-8 h-8 text-blue-500" />
           </div>

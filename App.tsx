@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RawProductRow, ProcessedProduct } from './types';
 import FileUpload from './components/FileUpload';
 import ProductCard from './components/ProductCard';
 import ResilientImage from './components/ResilientImage';
 import { processLocalData } from './services/geminiService';
-import { Printer, Trash2, Download, BookOpen, Share2, Link as LinkIcon, Check, ExternalLink } from 'lucide-react';
+import { Trash2, Download, BookOpen, Link as LinkIcon, Check, ExternalLink } from 'lucide-react';
 import LZString from 'lz-string';
 
 const App: React.FC = () => {
@@ -18,6 +18,29 @@ const App: React.FC = () => {
   const [isViewerMode, setIsViewerMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+
+  // Responsive Scaling State
+  const [zoomScale, setZoomScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // --- RESPONSIVE SCALING LOGIC ---
+  const handleResize = () => {
+    if (containerRef.current) {
+      // Available width minus padding (32px total for p-4)
+      const availableWidth = window.innerWidth - 32;
+      const targetWidth = 794; // A4 Pixel Width
+      
+      // Calculate scale: if screen is smaller than A4, shrink it. Max scale is 1.
+      const newScale = Math.min(1, availableWidth / targetWidth);
+      setZoomScale(newScale);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // --- INITIALIZATION: CHECK URL FOR SHARED DATA ---
   useEffect(() => {
@@ -181,24 +204,40 @@ const App: React.FC = () => {
   const handleDownloadPDF = () => {
     const element = document.getElementById('magazine-content');
     if (!element) return;
-    // @ts-ignore
-    const html2pdf = window.html2pdf;
-    if (!html2pdf) { alert('PDF generator initializing...'); return; }
     
-    let filename = 'Promo Magazine.pdf';
-    const copMatch = magazineTitle.match(/\(COP-(\d+)\)/);
-    if (copMatch && copMatch[1]) {
-        filename = `Promo Magazine COP-${copMatch[1]}.pdf`;
-    }
+    // CRITICAL: Temporarily reset scale to 1 for full resolution capture
+    const currentScale = zoomScale;
+    setZoomScale(1);
 
-    const opt = {
-      margin: 0,
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 }, 
-      jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait', compress: true } 
-    };
-    html2pdf().set(opt).from(element).save();
+    // Wait for render cycle to update scale
+    setTimeout(() => {
+        // @ts-ignore
+        const html2pdf = window.html2pdf;
+        if (!html2pdf) { 
+            alert('PDF generator initializing...'); 
+            setZoomScale(currentScale); // Restore scale if failing
+            return; 
+        }
+        
+        let filename = 'Promo Magazine.pdf';
+        const copMatch = magazineTitle.match(/\(COP-(\d+)\)/);
+        if (copMatch && copMatch[1]) {
+            filename = `Promo Magazine COP-${copMatch[1]}.pdf`;
+        }
+
+        const opt = {
+        margin: 0,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0 }, 
+        jsPDF: { unit: 'px', format: [794, 1122], orientation: 'portrait', compress: true } 
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Restore responsive scale after download
+            setZoomScale(currentScale);
+        });
+    }, 100);
   };
 
   const ITEMS_PER_PAGE = 6;
@@ -247,20 +286,20 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-200 pb-20 print:bg-white print:pb-0 font-inter">
+    <div ref={containerRef} className="min-h-screen bg-slate-200 pb-20 print:bg-white print:pb-0 font-inter overflow-x-hidden">
       <header className="bg-white border-b border-slate-300 sticky top-0 z-30 print:hidden shadow-sm">
-        <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4 md:h-16 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0">
           <div className="flex items-center gap-2">
             <div className="bg-[#007d40] p-2 rounded-lg shadow-sm">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800 leading-none">
+              <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-none text-center md:text-left">
                 {isViewerMode ? "Al Habib Pharmacy Promo Magazine" : "Promo Magazine Design Hub"}
               </h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
              {products.length > 0 && (
                <>
                 {/* SHARE LINK BUTTONS - ONLY IN EDITOR MODE */}
@@ -271,19 +310,19 @@ const App: React.FC = () => {
                             href={generatedUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 rounded-md font-medium text-slate-600 hover:text-blue-600 hover:bg-white transition-all"
+                            className="flex items-center gap-2 px-2 md:px-3 py-2 rounded-md font-medium text-slate-600 hover:text-blue-600 hover:bg-white transition-all"
                             title="Open Link"
                           >
                               <ExternalLink className="w-4 h-4" />
-                              <span className="text-xs">Test Link</span>
+                              <span className="text-xs hidden sm:inline">Test Link</span>
                           </a>
                       )}
                       <button 
                         onClick={handleGenerateLink} 
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-sm border ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all shadow-sm border text-sm ${isCopied ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'}`}
                       >
                          {isCopied ? <Check className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
-                         <span>{isCopied ? 'Copied!' : 'Generate Link'}</span>
+                         <span>{isCopied ? 'Copied!' : 'Link'}</span>
                       </button>
                   </div>
                 )}
@@ -295,9 +334,9 @@ const App: React.FC = () => {
                   </button>
                 )}
 
-                <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm">
+                <button onClick={handleDownloadPDF} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm text-sm">
                   <Download className="w-4 h-4" />
-                  <span>Download PDF</span>
+                  <span>PDF</span>
                 </button>
                </>
              )}
@@ -305,12 +344,12 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="w-full mx-auto p-8 print:p-0 print:w-full flex justify-center">
+      <main className="w-full mx-auto p-4 md:p-8 print:p-0 print:w-full flex justify-center">
         {products.length === 0 ? (
-          <div className="mt-10 w-full max-w-[1400px]">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-slate-800 mb-2">Create Your Promo Magazine</h2>
-              <p className="text-slate-500 max-w-xl mx-auto">
+          <div className="mt-6 md:mt-10 w-full max-w-[1400px]">
+            <div className="text-center mb-8 md:mb-10">
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Create Your Promo Magazine</h2>
+              <p className="text-slate-500 max-w-xl mx-auto text-sm md:text-base">
                 Upload your Excel file to generate an A4 Catalog.<br/>
                 <span className="inline-flex flex-wrap justify-center gap-2 mt-2">
                   <code className="bg-white px-2 py-1 rounded border">SKU</code>
@@ -328,87 +367,101 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="w-full flex justify-center">
-            <div id="magazine-content" className="w-[794px] mx-auto">
-               
-               {/* --- FRONT COVER PAGE --- */}
-               <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden">
-                  <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                  <div className="z-10 flex flex-col items-center gap-8">
-                      {headerLogo && (
-                          <div className="h-40 w-auto mb-4">
-                              <ResilientImage src={headerLogo} alt="Brand Logo" className="h-full w-auto object-contain rounded-2xl drop-shadow-xl" isLogo={true} />
+             {/* 
+                MAGAZINE PREVIEW CONTAINER 
+                Scales down on small screens to fit viewport, but maintains strict 794px width internally 
+             */}
+             <div 
+                style={{ 
+                  transform: `scale(${zoomScale})`, 
+                  transformOrigin: 'top center',
+                  // Adjust margin bottom to account for the whitespace created by scaling down
+                  marginBottom: `-${(1 - zoomScale) * 1122}px` 
+                }}
+                className="transition-transform duration-300 ease-out"
+             >
+                <div id="magazine-content" className="w-[794px] mx-auto shadow-2xl print:shadow-none bg-slate-300 print:bg-white gap-8 flex flex-col print:block">
+                  
+                  {/* --- FRONT COVER PAGE --- */}
+                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none">
+                      <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                      <div className="z-10 flex flex-col items-center gap-8">
+                          {headerLogo && (
+                              <div className="h-40 w-auto mb-4">
+                                  <ResilientImage src={headerLogo} alt="Brand Logo" className="h-full w-auto object-contain rounded-2xl drop-shadow-xl" isLogo={true} />
+                              </div>
+                          )}
+                          <div className="h-1 w-32 bg-white mb-4"></div>
+                          <h1 className="text-6xl font-black text-center uppercase tracking-tight leading-tight font-inter max-w-[680px] drop-shadow-lg">
+                              {renderStylizedTitle(magazineTitle)}
+                          </h1>
+                          <div className="mt-8 px-6 py-2 border-2 border-green-400/50 rounded-full">
+                              <span className="text-sm font-bold uppercase tracking-[0.4em] text-green-100">Monthly Offers</span>
                           </div>
-                      )}
-                      <div className="h-1 w-32 bg-white mb-4"></div>
-                      <h1 className="text-6xl font-black text-center uppercase tracking-tight leading-tight font-inter max-w-[680px] drop-shadow-lg">
-                          {renderStylizedTitle(magazineTitle)}
-                      </h1>
-                      <div className="mt-8 px-6 py-2 border-2 border-green-400/50 rounded-full">
-                          <span className="text-sm font-bold uppercase tracking-[0.4em] text-green-100">Monthly Offers</span>
+                      </div>
+                      
+                      <div className="absolute bottom-20 text-white text-3xl font-black uppercase tracking-widest drop-shadow-lg z-10 text-center w-full">
+                        Valid Until Stocks Last
                       </div>
                   </div>
-                  
-                  <div className="absolute bottom-20 text-white text-3xl font-black uppercase tracking-widest drop-shadow-lg z-10 text-center w-full">
-                    Valid Until Stocks Last
-                  </div>
-               </div>
 
-               {/* --- PRODUCT PAGES --- */}
-               {productPages.map((pageProducts, pageIndex) => (
-                 <div key={pageIndex} className="bg-white relative w-[794px] h-[1115px] flex flex-col text-slate-900 overflow-hidden">
-                    <div className="px-10 pt-12 pb-6 flex-grow bg-slate-50/50">
-                        <div className="grid grid-cols-3 grid-rows-2 gap-4 mx-auto justify-items-center w-full h-full content-start">
-                            {pageProducts.map((product) => (
-                                <div key={product.id} className="w-full h-full">
-                                    <ProductCard product={product} onRetry={handleRetry} />
-                                </div>
-                            ))}
+                  {/* --- PRODUCT PAGES --- */}
+                  {productPages.map((pageProducts, pageIndex) => (
+                    <div key={pageIndex} className="bg-white relative w-[794px] h-[1115px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none">
+                        <div className="px-10 pt-12 pb-6 flex-grow bg-slate-50/50">
+                            <div className="grid grid-cols-3 grid-rows-2 gap-4 mx-auto justify-items-center w-full h-full content-start">
+                                {pageProducts.map((product) => (
+                                    <div key={product.id} className="w-full h-full">
+                                        <ProductCard product={product} onRetry={handleRetry} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="bg-white text-slate-400 h-12 print:bg-white flex items-center justify-center px-8 border-t border-slate-100">
+                          <span className="text-[10px] font-mono">- {pageIndex + 1} -</span>
                         </div>
                     </div>
-                    <div className="bg-white text-slate-400 h-12 print:bg-white flex items-center justify-center px-8 border-t border-slate-100">
-                       <span className="text-[10px] font-mono">- {pageIndex + 1} -</span>
-                    </div>
-                 </div>
-               ))}
+                  ))}
 
-               {/* --- BACK COVER PAGE --- */}
-               <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden">
-                   <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                   <div className="z-10 w-full max-w-lg flex flex-col items-center gap-10">
-                       <div className="text-center">
-                           <h2 className="text-3xl font-bold mb-2">Contact Us</h2>
-                           <div className="h-1 w-20 bg-white mx-auto rounded-full"></div>
-                       </div>
-                       <div className="space-y-6 w-full">
-                           <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
-                               <div className="p-2 rounded-full border border-white/20"><PhoneIcon /></div>
-                               <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Customer Service</p><p className="text-lg font-bold">+966 12 345 6789</p></div>
-                           </div>
-                           <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
-                               <div className="p-2 rounded-full border border-white/20"><GlobeIcon /></div>
-                               <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Visit our Website</p><p className="text-lg font-bold">www.alhabibpharmacy.com</p></div>
-                           </div>
-                           <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
-                               <div className="p-2 rounded-full border border-white/20"><MailIcon /></div>
-                               <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Email Us</p><p className="text-lg font-bold">care@alhabib.com</p></div>
-                           </div>
-                       </div>
-                       <div className="flex gap-6 mt-4">
-                           <div className="p-3 bg-white/10 rounded-full hover:bg-white/20 cursor-pointer transition-colors"><FacebookIcon /></div>
-                           <div className="p-3 bg-white/10 rounded-full hover:bg-white/20 cursor-pointer transition-colors"><InstagramIcon /></div>
-                           <div className="p-3 bg-white/10 rounded-full hover:bg-white/20 cursor-pointer transition-colors"><TwitterIcon /></div>
-                       </div>
-                       <div className="mt-8 flex flex-col items-center gap-3">
-                           <a href="https://alhabibpharmacy.com/ar-sa/category/offers" target="_blank" rel="noopener noreferrer" className="bg-white p-4 rounded-2xl shadow-lg hover:scale-105 transition-transform cursor-pointer group">
-                               <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://alhabibpharmacy.com/ar-sa/category/offers" alt="Scan for Latest Offers" className="w-32 h-32 object-contain" />
-                           </a>
-                           <p className="text-sm font-bold text-green-200 text-center uppercase tracking-wide mt-1">
-                              Scan OR Click for Latest Offers
-                           </p>
-                       </div>
-                   </div>
-               </div>
-            </div>
+                  {/* --- BACK COVER PAGE --- */}
+                  <div className="bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 mb-8 shadow-lg print:shadow-none">
+                      <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                      <div className="z-10 w-full max-w-lg flex flex-col items-center gap-10">
+                          <div className="text-center">
+                              <h2 className="text-3xl font-bold mb-2">Contact Us</h2>
+                              <div className="h-1 w-20 bg-white mx-auto rounded-full"></div>
+                          </div>
+                          <div className="space-y-6 w-full">
+                              <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
+                                  <div className="p-2 rounded-full border border-white/20"><PhoneIcon /></div>
+                                  <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Customer Service</p><p className="text-lg font-bold">+966 12 345 6789</p></div>
+                              </div>
+                              <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
+                                  <div className="p-2 rounded-full border border-white/20"><GlobeIcon /></div>
+                                  <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Visit our Website</p><p className="text-lg font-bold">www.alhabibpharmacy.com</p></div>
+                              </div>
+                              <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
+                                  <div className="p-2 rounded-full border border-white/20"><MailIcon /></div>
+                                  <div><p className="text-xs text-green-200 uppercase font-bold tracking-wider">Email Us</p><p className="text-lg font-bold">care@alhabib.com</p></div>
+                              </div>
+                          </div>
+                          <div className="flex gap-6 mt-4">
+                              <div className="p-3 bg-white/10 rounded-full hover:bg-white/20 cursor-pointer transition-colors"><FacebookIcon /></div>
+                              <div className="p-3 bg-white/10 rounded-full hover:bg-white/20 cursor-pointer transition-colors"><InstagramIcon /></div>
+                              <div className="p-3 bg-white/10 rounded-full hover:bg-white/20 cursor-pointer transition-colors"><TwitterIcon /></div>
+                          </div>
+                          <div className="mt-8 flex flex-col items-center gap-3">
+                              <a href="https://alhabibpharmacy.com/ar-sa/category/offers" target="_blank" rel="noopener noreferrer" className="bg-white p-4 rounded-2xl shadow-lg hover:scale-105 transition-transform cursor-pointer group">
+                                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://alhabibpharmacy.com/ar-sa/category/offers" alt="Scan for Latest Offers" className="w-32 h-32 object-contain" />
+                              </a>
+                              <p className="text-sm font-bold text-green-200 text-center uppercase tracking-wide mt-1">
+                                  Scan OR Click for Latest Offers
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+                </div>
+             </div>
           </div>
         )}
       </main>
