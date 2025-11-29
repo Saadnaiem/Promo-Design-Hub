@@ -9,8 +9,6 @@ interface ProductCardProps {
   onRetry: (id: string) => void;
 }
 
-// INLINE SVG COMPONENT for Saudi Riyal
-// UPDATED: Uses unique ID scoping to prevent styles from leaking to other icons
 const InlineSvg = ({ url, className, color }: { url: string, className?: string, color: string }) => {
   const [svgContent, setSvgContent] = useState<string>('');
   const [uniqueId] = useState(`svg-${Math.random().toString(36).substr(2, 9)}`);
@@ -22,13 +20,12 @@ const InlineSvg = ({ url, className, color }: { url: string, className?: string,
         if (!response.ok) throw new Error('Failed to load SVG');
         let text = await response.text();
         
-        // Strip existing attributes/styles that might conflict
         text = text.replace(/<\?xml.*?\?>/, '').replace(/<!DOCTYPE.*?>/, '');
         text = text.replace(/style=['"][^'"]*['"]/g, '');
         text = text.replace(/fill=['"][^'"]*['"]/g, '');
         text = text.replace(/stroke=['"][^'"]*['"]/g, '');
         
-        // Scoped Style Block: Targets ONLY this specific wrapper ID
+        // Scope the styles to this specific SVG instance to prevent global leaks
         const styleBlock = `<style>
           #${uniqueId} svg, #${uniqueId} g, #${uniqueId} path, #${uniqueId} rect, #${uniqueId} circle { 
             fill: ${color} !important; 
@@ -57,21 +54,19 @@ const InlineSvg = ({ url, className, color }: { url: string, className?: string,
   );
 };
 
-// CUSTOM PROMO ICONS (Raw SVG to guarantee YELLOW Color)
+// Hardcoded SVG Icons to ensure YELLOW color and NO BLUE fill
 const PromoIcon = ({ type }: { type: 'flame' | 'cart' | 'gift' | 'star' }) => {
-  // Explicit YELLOW color hardcoded (#facc15)
   const strokeColor = "#facc15"; 
   const commonProps = {
     xmlns: "http://www.w3.org/2000/svg",
-    width: "14", // Slightly larger
+    width: "14",
     height: "14",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: strokeColor,
-    strokeWidth: "3.5", // BOLD STROKE
+    strokeWidth: "3.5",
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    // Inline styles to override any external CSS
     style: { 
         stroke: '#facc15', 
         color: '#facc15',
@@ -116,7 +111,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
   const [debugInfo, setDebugInfo] = useState<{input: string, extractedId: string}>({input: '', extractedId: ''});
   const [mainImageError, setMainImageError] = useState(false);
 
-  // Determine colors based on promo intensity
   const badgeBg = 'bg-[#007d40]';
   
   const handleMainFailure = (info: any) => {
@@ -124,42 +118,43 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
      setMainImageError(true); 
   };
 
-  // Calculating savings
   const savings = product.originalPrice - product.finalPrice;
   const hasSavings = savings > 0.5;
-  const discountPercent = product.originalPrice > 0 ? (savings / product.originalPrice) * 100 : 0;
 
-  // Helper to determine Badge Type based on mechanics
+  // COLOR LOGIC: Final Price is Red if Savings, Blue if not.
+  const priceColorClass = hasSavings ? 'text-red-600' : 'text-blue-900';
+  
+  // Explicitly Dark Blue for Currency Symbol in footer as requested
+  const footerSymbolHex = '#1e3a8a';
+
   const getPromoConfig = (label: string): { iconType: 'flame' | 'cart' | 'gift' | 'star', text: string } => {
     const l = label.toLowerCase();
     
-    // 🎁 BUNDLE OFFER
+    // Check for Bundle/Pack offers first (Buy 2, 2+1, etc)
     if (l.includes('2+1') || l.includes('3+1') || l.includes('buy 2') || l.includes('buy 3') || l.includes('bundle') || l.includes('set') || l.includes('pack') || l.includes('pcs')) {
         return { iconType: 'gift', text: 'BUNDLE OFFER' };
     }
 
-    // 🛒 BUY 1 GET 1 FREE
+    // Check for BOGO (strictly 1+1 or Buy 1)
     if (l.includes('1+1') || l.includes('buy 1')) {
         return { iconType: 'cart', text: 'BUY 1 GET 1 FREE' };
     }
     
-    // ⭐ PREMIUM PICK
     if (product.finalPrice > 150 || l.includes('premium')) {
         return { iconType: 'star', text: 'PREMIUM PICK' };
     }
     
-    // 🔥 HOT OFFER
+    // Default to Hot Offer
     return { iconType: 'flame', text: 'HOT OFFER' };
   };
 
   const promoConfig = getPromoConfig(product.discountLabel);
-
-  // Check if it is BOGO to hide redundant text
   const isBogo = promoConfig.text === 'BUY 1 GET 1 FREE';
 
-  // Construct Search URL for Al Habib Pharmacy
-  // Using the specific category/keyword format requested by the user
-  const searchUrl = `https://alhabibpharmacy.com/en-sa/category/keyword=${product.sku}`;
+  // UPDATED SEARCH URL: catalogsearch/result/?q={SKU} for consistent mobile/desktop behavior
+  const searchUrl = product.productPageUrl 
+    ? product.productPageUrl 
+    : `https://alhabibpharmacy.com/en-sa/catalogsearch/result/?q=${product.sku}`;
 
   return (
     <a 
@@ -169,27 +164,23 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
       className="group relative h-full bg-white flex flex-col border border-gray-200 shadow-sm overflow-hidden rounded-2xl hover:border-[#007d40] hover:shadow-lg transition-all duration-200 print:break-inside-avoid w-full cursor-pointer no-underline"
       title="Click to view product details"
     >
-      
-      {/* FULL WIDTH PROMO BANNER - Modernized with Icons */}
+      {/* PROMO BANNER */}
       <div className={`${badgeBg} py-1.5 shadow-sm z-10 print:bg-[#007d40] flex flex-col items-center justify-center leading-tight min-h-[3.5rem] relative overflow-hidden`}>
-        {/* Subtle background pattern overlay */}
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
         
+        {/* CATEGORY & ICON - FORCED YELLOW */}
         <div className="z-10 flex items-center gap-1.5 mb-0.5">
-            {/* Custom Icons in YELLOW (#facc15) */}
             <PromoIcon type={promoConfig.iconType} />
-            
             <span 
                 className="font-black text-[10px] uppercase tracking-widest" 
                 style={{ color: '#facc15' }}
             >
                 {promoConfig.text}
             </span>
-            
             <PromoIcon type={promoConfig.iconType} />
         </div>
         
-        {/* English Discount Label: Hide if BOGO (redundant), show otherwise */}
+        {/* ENGLISH MECHANICS - FORCED WHITE */}
         {!isBogo && (
             <h3 
               className="font-black text-sm uppercase tracking-wide z-10 px-2 text-center leading-none"
@@ -199,7 +190,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
             </h3>
         )}
 
-        {/* Arabic Discount Label: Always show if present */}
+        {/* ARABIC MECHANICS - FORCED WHITE */}
         {product.discountLabelAr && (
             <h3 
               className="font-black text-[10px] mt-0.5 z-10 font-cairo" 
@@ -212,10 +203,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
         )}
       </div>
 
-      {/* PRODUCT IMAGE AREA - REMOVED PADDING TO FILL SPACE */}
+      {/* IMAGE AREA */}
       <div className="relative flex-1 bg-white p-0 flex items-center justify-center min-h-[140px] overflow-hidden">
-        
-        {/* BRAND LOGO - Top Left Overlay - Rounded Badge */}
+        {/* LOGO BADGE */}
         {product.logoUrl && (
            <div className="absolute top-2 left-2 z-20 h-7 max-w-[30%] bg-white rounded-lg shadow-md border border-gray-100 flex items-center justify-center px-1.5 py-0.5 overflow-hidden">
              <ResilientImage 
@@ -227,12 +217,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
            </div>
         )}
 
-        {/* SAVINGS STICKER - Circular Badge (Top Right) - ORANGE */}
+        {/* SAVINGS CIRCLE */}
         {hasSavings && (
-            <div className="absolute top-2 right-2 z-20 w-12 h-12 bg-orange-600 rounded-full flex flex-col items-center justify-center text-white shadow-md transform rotate-12 border-2 border-white">
-                <span className="text-[7px] font-bold uppercase leading-none">Save</span>
-                <span className="text-sm font-black leading-none -mt-0.5">{Math.round(savings)}</span>
-                {/* Calligraphic Symbol - White Variant - SMALL SIZE */}
+            <div className="absolute top-2 right-2 z-20 w-16 h-16 bg-red-600 rounded-full flex flex-col items-center justify-center text-white shadow-md transform rotate-12 border-2 border-white">
+                <span className="text-[9px] font-bold uppercase leading-none">Save</span>
+                <span className="text-lg font-black leading-none -mt-0.5">{Math.round(savings)}</span>
+                {/* Fixed Color: White (#ffffff). Fixed Size: w-2.5 h-2.5 */}
                 <InlineSvg 
                    url="https://upload.wikimedia.org/wikipedia/commons/9/98/Saudi_Riyal_Symbol.svg" 
                    className="w-2.5 h-2.5 -mt-0.5" 
@@ -241,10 +231,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
             </div>
         )}
 
+        {/* MAIN PRODUCT IMAGE */}
         {product.imageUrl ? (
             <ResilientImage 
                 src={product.imageUrl}
                 alt={product.name}
+                // removed max-h constraint so it fills space
                 className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-500"
                 onFailure={handleMainFailure}
             />
@@ -256,33 +248,28 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
         )}
       </div>
 
-      {/* PRODUCT DETAILS & PRICING */}
+      {/* TEXT CONTENT */}
       <div className="px-3 pb-3 pt-1 flex flex-col gap-0.5 bg-white relative">
-        
-        {/* Names & SKU Container */}
         <div className="flex flex-col justify-start mb-2">
-          {/* English Name */}
-          <h3 className="font-bold text-slate-800 text-xs leading-tight line-clamp-2 h-[2.2em]" title={product.name}>
+          {/* ENGLISH NAME - Removed line-clamp to allow full text */}
+          <h3 className="font-bold text-slate-800 text-xs leading-tight mb-1" title={product.name}>
             {product.name}
           </h3>
           
-          {/* Arabic Name - STRICTLY Below English Name - BOLD & LARGER - FULL LENGTH (No line clamp) */}
+          {/* ARABIC NAME - Removed line-clamp */}
           {product.nameAr && (
              <h3 className="font-black text-xs text-slate-700 leading-tight text-right mt-1 mb-0.5 font-cairo" dir="rtl" lang="ar" title={product.nameAr}>
                {product.nameAr}
              </h3>
           )}
 
-          {/* SKU - Below Arabic Name in DARK BLUE */}
           <p className="text-[9px] text-blue-900 font-bold mt-0.5 font-mono tracking-tight">
             SKU: {product.sku}
           </p>
         </div>
 
-        {/* Pricing Row */}
+        {/* PRICING FOOTER */}
         <div className="flex items-end justify-between border-t border-gray-100 pt-2 mt-auto">
-          
-          {/* Left: Regular Price - DARK BLUE LABEL */}
           <div className="flex flex-col">
             {hasSavings ? (
               <>
@@ -298,21 +285,20 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
             )}
           </div>
 
-          {/* Right: Now Price */}
           <div className="flex flex-col items-end">
              {hasSavings && (
-               <span className="text-[8px] text-red-600 font-black uppercase tracking-widest mb-0.5">
+               <span className="text-[10px] text-blue-900 font-black uppercase tracking-widest mb-0.5">
                  NOW
                </span>
              )}
-             <div className="flex items-end text-blue-900 leading-none">
-                {/* Calligraphic Symbol - Blue Variant (SMALLER SIZE & NO BOLD) */}
+             <div className={`flex items-end ${priceColorClass} leading-none`}>
+                {/* Fixed Color: Dark Blue (#1e3a8a). Fixed Size: w-3.5 h-3.5 */}
                 <InlineSvg 
                    url="https://upload.wikimedia.org/wikipedia/commons/9/98/Saudi_Riyal_Symbol.svg" 
                    className="w-3.5 h-3.5 mb-1.5 mr-1" 
-                   color="#1e3a8a" 
+                   color={footerSymbolHex} 
                 />
-                <span className="text-3xl font-black tracking-tighter">
+                <span className="text-2xl font-black tracking-tighter">
                   {Math.floor(product.finalPrice)}
                 </span>
                 <span className="text-[10px] font-bold mb-1">

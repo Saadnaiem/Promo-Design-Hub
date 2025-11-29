@@ -28,12 +28,24 @@ export const processLocalData = (
       
       if (!mechanicsAr) mechanicsAr = `خصم ${percent}% على القطعة الثانية`;
     }
-    // Logic 1: Percentage Off
+    // Logic 1: Percentage Off (VAT CALCULATION UPDATE)
     else {
       const percentMatch = mechLower.match(/(\d+)%\s*(off|discount|save)/);
       if (percentMatch && percentMatch[1]) {
         const percent = parseInt(percentMatch[1]);
-        finalPrice = originalPrice * ((100 - percent) / 100);
+        
+        // VAT CALCULATION LOGIC:
+        // 1. Calculate Price Before VAT (VAT is 15% in SA)
+        const vatRate = 1.15;
+        const priceBeforeVat = originalPrice / vatRate;
+        
+        // 2. Calculate Discount on Pre-VAT Price
+        const discountMultiplier = (100 - percent) / 100;
+        const priceAfterDiscountBeforeVat = priceBeforeVat * discountMultiplier;
+        
+        // 3. Add VAT (15%) back to find Final Price
+        finalPrice = priceAfterDiscountBeforeVat * vatRate;
+
         discountLabel = `${percent}% OFF`;
         if (!mechanicsAr) mechanicsAr = `خصم ${percent}%`;
       }
@@ -84,6 +96,7 @@ export const processLocalData = (
     nameAr: rawItem.NameAr,
     imageUrl: "", 
     logoUrl: "", 
+    productPageUrl: rawItem.ProductPage, // Map direct product link
     originalPrice: originalPrice,
     finalPrice: finalPrice,
     discountLabel: discountLabel.toUpperCase(),

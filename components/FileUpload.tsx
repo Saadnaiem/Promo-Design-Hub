@@ -7,9 +7,10 @@ import { RawProductRow } from '../types';
 interface FileUploadProps {
   onDataLoaded: (data: RawProductRow[], manualMonth?: string) => void;
   onLogoFound?: (url: string) => void;
+  onCoverFound?: (url: string) => void;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) => {
+const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound, onCoverFound }) => {
   const [monthInput, setMonthInput] = useState('');
   
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +76,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
       // STRICTLY exclude 'Logo' and 'Brand' from Image detection
       const imageIndex = findColIndex(
         ['Image', 'Images', 'Img', 'Picture', 'Photo', 'URL', 'Link', 'Web', 'Drive'], 
-        ['Logo', 'Brand', 'Icon'] 
+        ['Logo', 'Brand', 'Icon', 'Product Page', 'Page'] 
       );
       
       const logoIndex = findColIndex(['Logo', 'Brand', 'Brand Logo', 'Icon']); 
@@ -95,6 +96,9 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
       // Month Column
       const monthIndex = findColIndex(['Month', 'Campaign Month', 'Period', 'Date', 'Time', 'Campaign']);
 
+      // Product Page Link Column
+      const productPageIndex = findColIndex(['Product Page', 'Page Link', 'Product Link', 'Url', 'Link'], ['Image', 'Img', 'Logo']);
+
       // Validation
       const missingCols = [];
       if (skuIndex === -1) missingCols.push("SKU");
@@ -113,19 +117,31 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
         const row = data[i];
         const skuVal = String(row[skuIndex] || '').trim();
         
-        // --- LOGO EXTRACTION LOGIC ---
-        // If this row is the "Logo" configuration row (SKU == 'Logo')
-        if (skuVal.toLowerCase() === 'logo') {
-           // If we have an image column, extract the URL and send it up
+        // --- CONFIG EXTRACTION LOGIC ---
+        const skuLower = skuVal.toLowerCase();
+
+        // 1. LOGO
+        if (skuLower === 'logo') {
            if (imageIndex !== -1 && row[imageIndex]) {
               const logoUrl = String(row[imageIndex]).trim();
               if (onLogoFound && logoUrl) {
-                 // Clean possible multi-link issues
                  const cleanLogoUrl = logoUrl.split(/[,\n\s]+/)[0].trim();
                  onLogoFound(cleanLogoUrl);
               }
            }
-           continue; // Skip adding this row to products
+           continue; 
+        }
+
+        // 2. COVER IMAGE
+        if (skuLower === 'cover image' || skuLower === 'cover') {
+           if (imageIndex !== -1 && row[imageIndex]) {
+              const coverUrl = String(row[imageIndex]).trim();
+              if (onCoverFound && coverUrl) {
+                 const cleanCoverUrl = coverUrl.split(/[,\n\s]+/)[0].trim();
+                 onCoverFound(cleanCoverUrl);
+              }
+           }
+           continue;
         }
         
         // Basic validity check: Must have SKU and Name to be useful
@@ -142,6 +158,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
           Image: imageIndex !== -1 ? row[imageIndex] : undefined,
           Logo: logoIndex !== -1 ? row[logoIndex] : undefined,
           Month: monthIndex !== -1 ? row[monthIndex] : undefined,
+          ProductPage: productPageIndex !== -1 ? row[productPageIndex] : undefined,
         };
 
         parsedData.push(rawItem);
@@ -157,7 +174,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded, onLogoFound }) =>
     };
     
     reader.readAsBinaryString(file);
-  }, [onDataLoaded, onLogoFound, monthInput]);
+  }, [onDataLoaded, onLogoFound, onCoverFound, monthInput]);
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-4 px-2 sm:px-0">

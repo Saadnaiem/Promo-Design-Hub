@@ -1,3 +1,4 @@
+
 export interface RawProductRow {
   SKU: string | number;
   Mechanics: string;
@@ -9,6 +10,7 @@ export interface RawProductRow {
   Price: number;      
   FinalPrice?: number; 
   Month?: string | number; // Added: Month for dynamic title
+  ProductPage?: string; // Added: Direct link to product page
 }
 
 export interface ProcessedProduct {
@@ -19,6 +21,7 @@ export interface ProcessedProduct {
   nameAr?: string;
   imageUrl: string;
   logoUrl?: string;   
+  productPageUrl?: string; // Added: Direct link to product page
   originalPrice: number;
   finalPrice: number;
   discountLabel: string; // e.g., "50% OFF"
