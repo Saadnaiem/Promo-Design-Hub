@@ -236,8 +236,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onRetry }) => {
             <ResilientImage 
                 src={product.imageUrl}
                 alt={product.name}
-                // removed max-h constraint so it fills space
-                className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-500"
+                // Reduce max-height to 220px for safety against vertical overflow on A4 pages
+                className="w-full h-full max-h-[220px] object-contain transform group-hover:scale-105 transition-transform duration-500"
                 onFailure={handleMainFailure}
             />
         ) : (

@@ -58,11 +58,12 @@ const App: React.FC = () => {
 
   // Calculate total height for negative margin correction on mobile
   // Total Pages = Front + Back + Product Pages
+  // Page Height = 1115px (Reduced for safety) + Margin
+  // A4 Stride = 1123px
   const totalPages = products.length > 0 ? 2 + productPages.length : 0;
-  // Height per page = 1122px
-  // Gap = 32px (when not downloading) or 0 (when downloading)
-  const gapHeight = isDownloading ? 0 : 32;
-  const totalContentHeight = (totalPages * 1122) + (Math.max(0, totalPages - 1) * gapHeight);
+  const pageHeight = 1115; 
+  const gapHeight = isDownloading ? 8 : 32; // 8px gap during download to hit 1123px stride (1115+8)
+  const totalContentHeight = (totalPages * pageHeight) + (Math.max(0, totalPages - 1) * gapHeight);
 
   // --- DATA OPTIMIZATION (MINIFICATION) ---
   const minifyData = (products: ProcessedProduct[]) => {
@@ -303,7 +304,9 @@ const App: React.FC = () => {
         const linksToInject: { page: number, x: number, y: number, w: number, h: number, url: string }[] = [];
         const contentRect = element.getBoundingClientRect();
         const anchors = element.getElementsByTagName('a');
-        const pageHeight = 1122; 
+        
+        // Exact stride of A4 in PDF engine
+        const pageStride = 1123; 
 
         for (let i = 0; i < anchors.length; i++) {
             const a = anchors[i];
@@ -311,8 +314,11 @@ const App: React.FC = () => {
             if (rect.width > 0 && rect.height > 0) {
                 const top = rect.top - contentRect.top;
                 const left = rect.left - contentRect.left;
-                const pageNum = Math.floor(top / pageHeight) + 1;
-                const yOnPage = top % pageHeight;
+                
+                // Calculate which page this link falls on
+                const pageNum = Math.floor(top / pageStride) + 1;
+                const yOnPage = top % pageStride;
+                
                 if (a.href) {
                     linksToInject.push({
                         page: pageNum,
@@ -520,7 +526,7 @@ const App: React.FC = () => {
                 <div id="magazine-content" className={`w-[794px] mx-auto shadow-2xl print:shadow-none bg-slate-300 print:bg-white flex flex-col print:block ${isDownloading ? 'gap-0' : 'gap-8'}`}>
                   
                   {/* FRONT COVER */}
-                  <div className={`bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-0' : 'mb-8'}`}>
+                  <div className={`bg-[#007d40] relative w-[794px] h-[1115px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-[8px]' : 'mb-8'}`}>
                       {coverImage ? (
                           <>
                              <div className="absolute inset-0 z-0">
@@ -559,8 +565,8 @@ const App: React.FC = () => {
 
                   {/* PRODUCT PAGES */}
                   {productPages.map((pageProducts, pageIndex) => (
-                    <div key={pageIndex} className={`bg-white relative w-[794px] h-[1120px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-[3px]' : 'mb-8'}`}>
-                        <div className="px-10 pt-5 pb-6 flex-grow bg-slate-50/50">
+                    <div key={pageIndex} className={`bg-white relative w-[794px] h-[1115px] flex flex-col text-slate-900 overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-[8px]' : 'mb-8'}`}>
+                        <div className="px-10 pt-6 pb-4 flex-grow bg-slate-50/50">
                             <div className="grid grid-cols-3 grid-rows-2 gap-4 mx-auto justify-items-center w-full h-full content-start">
                                 {pageProducts.map((product) => (
                                     <div key={product.id} className="w-full h-full">
@@ -576,7 +582,7 @@ const App: React.FC = () => {
                   ))}
 
                   {/* BACK COVER */}
-                  <div className={`bg-[#007d40] relative w-[794px] h-[1122px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-0' : 'mb-8'}`}>
+                  <div className={`bg-[#007d40] relative w-[794px] h-[1115px] flex flex-col items-center justify-center text-white overflow-hidden shrink-0 mx-auto print:mb-0 shadow-lg print:shadow-none ${isDownloading ? 'mb-0' : 'mb-8'}`}>
                       <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                       <div className="z-10 w-full max-w-lg flex flex-col items-center gap-10">
                           <div className="text-center">
